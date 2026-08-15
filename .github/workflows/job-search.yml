@@ -3,9 +3,6 @@ name: Daily Embedded Systems Fresher Job Search
 on:
   schedule:
     # 7:30 AM IST = 2:00 AM UTC
-    # During DST (Mar-Oct): IST is UTC+5:30, so 7:30 AM IST = 2:00 AM UTC
-    # During standard time (Oct-Mar): IST is UTC+5:30, so 7:30 AM IST = 2:00 AM UTC
-    # Note: GitHub Actions runs on UTC, so we use 2:00 AM UTC which is approximately 7:30 AM IST
     - cron: '0 2 * * *'
   
   # Allow manual trigger for testing
@@ -36,7 +33,7 @@ jobs:
       
       - name: Upload results as artifact
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: job-search-results-${{ github.run_number }}
           path: job_results.md
