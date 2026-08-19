@@ -51,7 +51,6 @@ PRIORITY_COMPANIES = [
     "Wipro",
 ]
 
-
 SEARCH_QUERIES = [
     '"embedded software engineer" fresher India',
     '"embedded systems engineer" fresher India',
@@ -89,7 +88,6 @@ SEARCH_QUERIES = [
     '"automotive firmware" fresher India',
     '"AUTOSAR" fresher India',
     '"CAN" embedded fresher India',
-
     '"FreeRTOS" fresher India',
     '"RTOS" embedded fresher India',
     '"embedded Linux" graduate India',
@@ -145,7 +143,6 @@ EMBEDDED_KEYWORDS = [
     "board bring-up",
 ]
 
-
 FRESHER_KEYWORDS = [
     "fresher",
     "fresh graduate",
@@ -168,7 +165,6 @@ FRESHER_KEYWORDS = [
     "intern",
 ]
 
-
 SENIOR_KEYWORDS = [
     "senior engineer",
     "senior software engineer",
@@ -180,7 +176,6 @@ SENIOR_KEYWORDS = [
     "technical manager",
     "director",
 ]
-
 
 INDIA_LOCATIONS = [
     "bangalore",
@@ -345,6 +340,7 @@ def extract_location(text):
 
     for location in INDIA_LOCATIONS:
         if location in lowered:
+
             if location in ("bangalore", "bengaluru"):
                 return "Bengaluru, India"
 
@@ -540,8 +536,10 @@ def score_result(result):
 
         if age <= timedelta(hours=24):
             score += 20
+
         elif age <= timedelta(days=3):
             score += 10
+
         elif age <= timedelta(days=7):
             score += 5
 
@@ -649,9 +647,7 @@ def enrich_result(result):
 
 def search_all():
     print("=" * 80)
-    print(
-        "Embedded Systems Fresher Job Search"
-    )
+    print("Embedded Systems Fresher Job Search")
     print("=" * 80)
 
     print(
@@ -668,8 +664,7 @@ def search_all():
         start=1,
     ):
         print(
-            f"[{index}/"
-            f"{len(SEARCH_QUERIES)}] "
+            f"[{index}/{len(SEARCH_QUERIES)}] "
             f"{query}"
         )
 
@@ -690,6 +685,7 @@ def prepare_results(results):
     prepared = []
 
     for result in results:
+
         if not result.get("url"):
             continue
 
@@ -731,13 +727,9 @@ def prepare_results(results):
         )
 
         try:
-            result = enrich_result(
-                result
-            )
+            result = enrich_result(result)
 
-            if not result[
-                "embedded_relevant"
-            ]:
+            if not result["embedded_relevant"]:
                 continue
 
             if result["senior"]:
@@ -808,9 +800,7 @@ def job_markdown(result, number):
     if not technical:
         technical = "Not identified"
 
-    description = result[
-        "description"
-    ]
+    description = result["description"]
 
     if not description:
         description = (
@@ -818,44 +808,29 @@ def job_markdown(result, number):
             "be fully extracted."
         )
 
-    return f"""
-### {number}. {result["title"]}
-
-**Company:** {result["company"]}
-
-**Company size/reputation:** \
-{company_reputation(result["company"])}
-
-**Location:** {result["location"]}
-
-**Experience requirement:** \
-{result["experience"]}
-
-**Fresher relevance:** \
-{"Potentially suitable" if result["fresher_relevant"] else "Eligibility unclear"}
-
-**Posted:** {posted}
-
-**Freshness:** {result["freshness"]}
-
-**Salary:** {result["salary"]}
-
-**Embedded Systems relevance:** \
-{"Yes" if result["embedded_relevant"] else "Unclear"}
-
-**Career value:** \
-{career_value(result)}
-
-**Key technologies:** {technical}
-
-**Source:** {result["source"]}
-
-**APPLY HERE:** {result["url"]}
-
-**Job description/source summary:**
-
-{description[:1500]}
-"""
+    return (
+        f"### {number}. {result['title']}\n\n"
+        f"**Company:** {result['company']}\n\n"
+        f"**Company size/reputation:** "
+        f"{company_reputation(result['company'])}\n\n"
+        f"**Location:** {result['location']}\n\n"
+        f"**Experience requirement:** "
+        f"{result['experience']}\n\n"
+        f"**Fresher relevance:** "
+        f"{'Potentially suitable' if result['fresher_relevant'] else 'Eligibility unclear'}\n\n"
+        f"**Posted:** {posted}\n\n"
+        f"**Freshness:** {result['freshness']}\n\n"
+        f"**Salary:** {result['salary']}\n\n"
+        f"**Embedded Systems relevance:** "
+        f"{'Yes' if result['embedded_relevant'] else 'Unclear'}\n\n"
+        f"**Career value:** "
+        f"{career_value(result)}\n\n"
+        f"**Key technologies:** {technical}\n\n"
+        f"**Source:** {result['source']}\n\n"
+        f"**APPLY HERE:** {result['url']}\n\n"
+        f"**Job description/source summary:**\n\n"
+        f"{description[:1500]}\n"
+    )
 
 
 def create_report(results):
@@ -878,8 +853,7 @@ def create_report(results):
     report.append("")
 
     report.append(
-        "> GitHub-only automated job "
-        "discovery. No Anthropic/OpenAI API."
+        "> Automated Embedded Systems job discovery."
     )
 
     report.append("")
@@ -915,6 +889,7 @@ def create_report(results):
             "No suitable Embedded Systems "
             "fresher opportunities were found."
         )
+
     else:
         for index, result in enumerate(
             results[:30],
@@ -936,13 +911,115 @@ def create_report(results):
     report.append("")
 
     report.append(
-        "Open the application link and "
-        "verify the current job description, "
-        "eligibility, location, salary, and "
-        "application status before applying."
+        "Open the application link and verify "
+        "the current job description, eligibility, "
+        "location, salary, and application status "
+        "before applying."
     )
 
     return "\n".join(report)
+
+
+def telegram_escape(text):
+    """
+    Convert normal text to safe Telegram HTML.
+    """
+
+    return html.escape(
+        text,
+        quote=False,
+    )
+
+
+def markdown_to_telegram_html(markdown):
+    """
+    Convert the report's basic Markdown formatting
+    into Telegram HTML.
+
+    This prevents literal * characters from appearing
+    in Telegram messages.
+    """
+
+    text = markdown
+
+    # Escape HTML first.
+    text = telegram_escape(text)
+
+    # Headings.
+    text = re.sub(
+        r"^### (.+)$",
+        r"<b>\1</b>",
+        text,
+        flags=re.MULTILINE,
+    )
+
+    text = re.sub(
+        r"^## (.+)$",
+        r"<b>\1</b>",
+        text,
+        flags=re.MULTILINE,
+    )
+
+    text = re.sub(
+        r"^# (.+)$",
+        r"<b>\1</b>",
+        text,
+        flags=re.MULTILINE,
+    )
+
+    # Bold Markdown.
+    text = re.sub(
+        r"\*\*(.+?)\*\*",
+        r"<b>\1</b>",
+        text,
+    )
+
+    # Markdown blockquote.
+    text = re.sub(
+        r"^&gt; (.+)$",
+        r"<i>\1</i>",
+        text,
+        flags=re.MULTILINE,
+    )
+
+    # Remove remaining Markdown emphasis characters.
+    text = text.replace(
+        "**",
+        "",
+    )
+
+    return text.strip()
+
+
+def split_telegram_message(text, max_length=3800):
+    """
+    Split long Telegram messages while keeping
+    each message below Telegram's size limit.
+    """
+
+    chunks = []
+
+    while len(text) > max_length:
+
+        split_at = text.rfind(
+            "\n",
+            0,
+            max_length,
+        )
+
+        if split_at <= 0:
+            split_at = max_length
+
+        chunks.append(
+            text[:split_at]
+        )
+
+        text = text[split_at:].lstrip()
+
+    if text:
+        chunks.append(text)
+
+    return chunks
 
 
 def send_telegram_message(message):
@@ -968,21 +1045,18 @@ def send_telegram_message(message):
         )
         return
 
+    telegram_message = (
+        markdown_to_telegram_html(message)
+    )
+
+    chunks = split_telegram_message(
+        telegram_message
+    )
+
     url = (
         "https://api.telegram.org/bot"
         f"{bot_token}/sendMessage"
     )
-
-    max_length = 3900
-
-    chunks = [
-        message[index:index + max_length]
-        for index in range(
-            0,
-            len(message),
-            max_length,
-        )
-    ]
 
     for index, chunk in enumerate(
         chunks,
@@ -992,6 +1066,8 @@ def send_telegram_message(message):
             {
                 "chat_id": chat_id,
                 "text": chunk,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
             }
         ).encode("utf-8")
 
@@ -999,17 +1075,38 @@ def send_telegram_message(message):
             url,
             data=payload,
             headers={
-                "Content-Type":
-                    "application/json"
+                "Content-Type": "application/json"
             },
             method="POST",
         )
 
-        with urlopen(
-            request,
-            timeout=30,
-        ) as response:
-            response.read()
+        try:
+            with urlopen(
+                request,
+                timeout=30,
+            ) as response:
+
+                response_data = response.read().decode(
+                    "utf-8",
+                    errors="replace",
+                )
+
+                telegram_result = json.loads(
+                    response_data
+                )
+
+                if not telegram_result.get("ok"):
+                    raise RuntimeError(
+                        "Telegram API error: "
+                        + response_data
+                    )
+
+        except Exception as exc:
+            print(
+                f"Telegram message {index} failed: {exc}",
+                file=sys.stderr,
+            )
+            raise
 
         print(
             f"Telegram message "
@@ -1023,6 +1120,7 @@ def write_failure(error):
         "w",
         encoding="utf-8",
     ) as file:
+
         file.write(
             "# Embedded Systems "
             "Job Search — FAILED\n\n"
@@ -1052,8 +1150,8 @@ def write_failure(error):
 def main():
     try:
         print(
-            "Starting GitHub-only "
-            "Embedded Systems job search..."
+            "Starting Embedded Systems "
+            "job search..."
         )
 
         raw_results = search_all()
@@ -1071,6 +1169,7 @@ def main():
             "w",
             encoding="utf-8",
         ) as file:
+
             file.write(report)
 
         send_telegram_message(
@@ -1085,6 +1184,7 @@ def main():
         return 0
 
     except Exception as exc:
+
         print(
             f"Job search failed: {exc}",
             file=sys.stderr,
