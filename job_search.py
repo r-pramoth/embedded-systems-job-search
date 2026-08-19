@@ -155,6 +155,7 @@ FRESHER_KEYWORDS = [
     "entry-level",
     "trainee",
     "graduate engineer trainee",
+    "get",
     "0 years",
     "0-1 years",
     "0–1 years",
@@ -1072,15 +1073,9 @@ def main():
         ) as file:
             file.write(report)
 
-        try:
-            send_telegram_message(
-                report
-            )
-        except Exception as exc:
-            print(
-                f"Telegram notification failed: {exc}",
-                file=sys.stderr,
-            )
+        send_telegram_message(
+            report
+        )
 
         print(
             f"Job search completed. "
