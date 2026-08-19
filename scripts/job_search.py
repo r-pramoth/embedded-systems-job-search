@@ -1,730 +1,1277 @@
 #!/usr/bin/env python3
+
 """
-Daily Embedded Systems Fresher Job Search Script
-Runs via GitHub Actions every day at 7:30 AM IST
+GitHub-only Embedded Systems Fresher Job Search
+
+No Anthropic API.
+No OpenAI API.
+No AI API.
+
+Uses:
+- Public Google News RSS search
+- Direct HTTP requests
+- HTML parsing
+- Keyword matching
+- Rule-based ranking
+- GitHub Actions
 """
 
-import os
-import json
-from datetime import datetime
-from anthropic import Anthropic
-
-def create_search_prompt():
-    """Generate the comprehensive job search prompt"""
-    return """
-Every day at 7:30 AM IST, search the web for newly posted job openings suitable for freshers in Embedded Systems.
-
-PRIMARY OBJECTIVE
-
-Find genuine and relevant Embedded Systems opportunities in India and internationally, with the newest postings receiving the highest priority.
-
-The purpose of this task is to discover opportunities as early as possible so I can personally decide which jobs to apply for.
-
-IMPORTANT — DO NOT MAKE THE FINAL DECISION FOR ME
-
-Do not silently reject or remove a potentially relevant job based on your own assumptions.
-
-If a job is reasonably related to Embedded Systems and could potentially be relevant to a fresher:
-
-- Include it in the results.
-- Show the employer's stated requirements.
-- Show the exact experience requirement when available.
-- Clearly identify uncertainty.
-- Let me make the final decision about whether to apply.
-
-Do not reject a job merely because:
-- The job description is ambiguous.
-- The employer does not explicitly use the word "fresher."
-- The experience requirement is unclear.
-- The job asks for skills I may not currently have.
-- The job contains multiple technical requirements.
-- You think my chances of getting selected are low.
-- The position is international.
-- Visa sponsorship information is unavailable.
-- Relocation may be required.
-- The salary is below my preferred amount.
-- You personally consider the job a weaker match.
-
-However, exclude positions that explicitly require 2+ years of professional experience when freshers are clearly ineligible, and clearly senior, lead, principal, architect, manager, or experienced-only positions.
-
-When uncertain, INCLUDE THE JOB and explain the uncertainty.
-
-The final decision about whether I should apply belongs to me.
-
-SALARY PREFERENCE — IMPORTANT
-
-My preferred target is approximately:
-
-₹1,00,000 per month or approximately ₹12 LPA.
-
-This is ONLY an additional preference, NOT a minimum requirement.
-
-NEVER reject or exclude a job merely because:
-- Salary is below ₹1,00,000/month.
-- Salary is not disclosed.
-- Salary information cannot be verified.
-
-Always report the actual salary when available.
-
-If salary is available, classify it as:
-
-- ₹1,00,000+/month — Meets/exceeds my preferred target
-- ₹75,000–₹99,999/month — Close to preferred target
-- ₹50,000–₹74,999/month — Below preferred target
-- Below ₹50,000/month — Significantly below preferred target
-- Not disclosed — Salary not mentioned
-
-For annual compensation, convert it approximately to monthly compensation for easier comparison, while preserving the original CTC/package figure.
-
-Example:
-
-₹12 LPA CTC → approximately ₹1,00,000/month CTC equivalent.
-
-Clearly distinguish:
-- CTC
-- Base salary
-- Bonus
-- Stock/equity
-- Stipend
-- Estimated/inferred compensation
-
-Do not treat CTC as take-home salary.
-
-SALARY PRIORITY
-
-Use salary as an additional ranking factor only.
-
-A lower-paying job can still be a high-priority result if:
-- The company is highly reputable.
-- The role provides strong Embedded Systems experience.
-- The technology stack is valuable.
-- The company offers strong learning opportunities.
-- The role is directly relevant to firmware/embedded development.
-- The opportunity has strong long-term career value.
-
-Do not sacrifice job relevance merely to reach the ₹1 lakh/month preference.
-
-TIMING STRATEGY
-
-- Run the search every day at 7:30 AM IST.
-- Prioritize jobs posted within the previous 24 hours.
-- Give the newest verified jobs the highest priority.
-- If fewer than 5 strong matches are found within 24 hours, expand the search to jobs posted within the previous 7 days.
-- Search international jobs according to the employer's local time zone as well.
-- Give additional priority to fresh postings from Monday through Thursday, especially Tuesday and Wednesday.
-- Do not exclude jobs simply because they were posted outside normal business hours.
-
-SEARCH SCOPE
-
-INDIA:
-
-Search across all cities and states in India.
-
-Include:
-- Onsite
-- Hybrid
-- Remote
-
-Search:
-- Startups
-- MNCs
-- Global Capability Centers
-- Product companies
-- Semiconductor companies
-- Automotive companies
-- Electronics companies
-- Defence companies
-- Aerospace companies
-- IoT companies
-- Robotics companies
-- Industrial automation companies
-- Engineering companies
-- Hardware companies
-- R&D organizations
-
-INTERNATIONAL:
-
-Search worldwide outside India.
-
-Prioritize:
-- Onsite positions
-- Graduate positions
-- Entry-level positions
-- Embedded/Firmware positions
-- Companies accepting international applicants
-- Visa sponsorship
-- Relocation support
-
-Include international hybrid positions when realistically applicable.
-
-Include international remote positions only when applicants located in India are explicitly eligible.
-
-For every international job, clearly state:
-- Country
-- City
-- Onsite/Hybrid/Remote
-- Visa sponsorship
-- Relocation support
-- Work authorization requirement
-
-Never assume visa sponsorship.
-
-TARGET ROLES
-
-Search for:
-
-- Embedded Systems Engineer
-- Embedded Software Engineer
-- Firmware Engineer
-- Junior Embedded Engineer
-- Embedded C Engineer
-- Firmware Developer
-- Junior Firmware Engineer
-- Embedded Linux Engineer
-- IoT/Embedded Engineer
-- Automotive Embedded Engineer
-- Graduate Embedded Engineer
-- Trainee Embedded Engineer
-- Associate Embedded Engineer
-- Graduate Engineer Trainee (Embedded)
-- Embedded Software Trainee
-- Firmware Trainee
-- Embedded Developer
-- Junior Firmware Developer
-- Embedded Applications Engineer
-- Embedded Hardware/Software Engineer
-- Embedded Test Engineer
-- Embedded Validation Engineer
-- Entry-Level BSP Engineer
-- Entry-Level Device Driver Engineer
-- Other closely related entry-level Embedded Systems positions.
-
-FRESHER / ENTRY-LEVEL FILTER
-
-Prioritize:
-
-- 0 years of professional experience
-- Fresh graduates
-- Recent graduates
-- Entry-level candidates
-- Graduate programs
-- Trainee positions
-- Graduate Engineer Trainee positions
-- Internships with a pathway to full-time employment
-
-Strongly prioritize jobs explicitly stating:
-
-- 0 years
-- Freshers
-- Fresh graduate
-- Recent graduate
-- Entry level
-- Graduate
-- Trainee
-- 0–1 years
-
-Jobs stating "0–2 years" or "0–3 years" may be included when fresh graduates appear eligible.
-
-If experience requirements are ambiguous:
-INCLUDE THE JOB and label eligibility as unclear.
-
-TECHNICAL RELEVANCE
-
-Give higher priority to jobs involving:
-
-- Embedded C
-- C
-- C++
-- Microcontrollers
-- ARM
-- STM32
-- AVR
-- PIC
-- ESP32
-- RTOS
-- FreeRTOS
-- Embedded Linux
-- Linux
-- Device Drivers
-- Firmware
-- BSP
-- UART
-- SPI
-- I2C
-- CAN
-- Ethernet
-- Automotive Embedded Systems
-- IoT
-- Sensors
-- Electronics
-- Digital Electronics
-- PCB/Hardware interfacing
-- VHDL
-- Verilog
-- MATLAB/Simulink
-- Hardware-software integration
-- Embedded testing and validation
-
-Do not reject a job simply because it does not mention every technology above.
-
-COMPANY INFORMATION — REQUIRED
-
-For every company whose job is included, provide a concise but useful company profile.
-
-Include:
-
-1. Company name
-2. Industry
-3. Headquarters
-4. Country
-5. Founded year, if reliably available
-6. Approximate company size, if reliably available
-7. What the company does
-8. Main products/services
-9. Main technologies/business areas
-10. Embedded Systems relevance
-11. Official company website
-12. Official careers page, when available
-
-COMPANY REPUTATION / QUALITY ASSESSMENT
-
-For every company, explicitly assess whether it appears to be:
-
-- Global major / globally recognized company
-- Large established company
-- Major MNC / Global Capability Center
-- Established Indian company
-- Established specialist/product company
-- Mid-sized company
-- Startup / early-stage company
-- Small company
-- Company size/reputation unclear
-
-Also provide:
-
-"Company reputation:"
-
-Choose one:
-
-- Top-tier / globally recognized
-- Highly reputable
-- Established and reputable
-- Specialized but lesser-known
-- Startup / emerging
-- Small or relatively unknown
-- Reputation could not be verified
-
-Do NOT call a company "top company", "big company", "globally popular", or "highly reputable" without evidence.
-
-Base the assessment on verifiable factors such as:
-- Global presence
-- Company size
-- Revenue/market position when reliably available
-- Industry reputation
-- Major products
-- Major customers/markets when reliably available
-- Publicly available company history
-- Recognition in its industry
-- Semiconductor/automotive/technology market position
-- Parent-company status
-- Global offices
-- Established engineering/R&D presence
-
-Clearly distinguish between:
-
-"Company size"
-
-and
-
-"Company reputation."
-
-A company can be small but technically respected.
-
-A large company can have a less relevant role.
-
-Do not assume that a large company automatically means the specific job is better.
-
-COMPANY CAREER VALUE
-
-Add:
-
-"Career value for Embedded Systems:"
-
-Rate it:
-
-- Excellent
-- Very strong
-- Strong
-- Moderate
-- Limited
-- Unclear
-
-Then give 1–3 concise reasons.
-
-Consider:
-- Quality of Embedded Systems work
-- Firmware exposure
-- Hardware-software integration
-- Product development
-- R&D exposure
-- Semiconductor/automotive/robotics/aerospace relevance
-- Engineering mentorship
-- Technical growth potential
-- Brand value in the Embedded Systems industry
-
-Do not exaggerate.
-
-APPLICATION LINK — MANDATORY
-
-For every job, provide a verified direct application link whenever one exists.
-
-Priority:
-
-1. Official company job application page
-2. Official company careers page containing the specific job
-3. Official LinkedIn job page
-4. Reputable job-board application page
-5. Other verified application source
-
-Clearly label:
-
-"APPLY HERE"
-
-Do not provide only a generic company homepage when a specific job application page exists.
-
-If no direct application link can be verified:
-
-"APPLY HERE: Direct application link not verified"
-
-Never invent an application URL.
-
-SEARCH SOURCES
-
-Search broadly across:
-
-- Official company career pages
-- LinkedIn Jobs
-- Indeed
-- Glassdoor
-- Wellfound
-- Naukri
-- Foundit
-- Other reputable job boards
-- Recruitment platforms
-- University/graduate hiring portals
-- Semiconductor company career pages
-- Automotive company career pages
-- Electronics company career pages
-- Embedded/firmware company career pages
-- Aerospace/defence company career pages
-
-LinkedIn MUST be included.
-
-When the same job appears on multiple websites:
-- Combine the information.
-- Prefer the official company job page.
-- Use the official company application link whenever available.
-
-VERIFICATION
-
-For every job:
-
-- Verify that the position currently exists.
-- Verify that applications are currently open.
-- Verify the posting date whenever available.
-- Verify experience requirements from the actual job description whenever possible.
-- Prefer the company's official job posting over aggregators.
-- Do not report clearly expired, closed, removed, or cancelled positions.
-
-Do not invent:
-- Jobs
-- Company information
-- Experience requirements
-- Salaries
-- Deadlines
-- Visa sponsorship
-- Relocation support
-- Eligibility
-- Skills
-- Application links
-- Company reputation
-
-If information is unavailable:
-
-"Not mentioned."
-
-If information cannot be verified:
-
-"Could not be verified."
-
-Do not turn missing information into a negative assumption.
-
-FOR EACH JOB, REPORT
-
-1. Job title
-2. Company
-3. Company industry
-4. Company size
-5. Company reputation
-6. Global popularity/reputation status
-7. Company headquarters
-8. What the company does
-9. Embedded Systems relevance
-10. Career value for Embedded Systems
-11. Job location
-12. Country
-13. India / International
-14. Onsite / Hybrid / Remote
-15. Experience requirement
-16. Fresher eligibility
-17. Date posted
-18. Application deadline
-19. Salary/CTC
-20. Monthly equivalent when useful
-21. Salary compared with my ₹1 lakh/month preference
-22. Visa sponsorship for international jobs
-23. Relocation support
-24. Work authorization requirement
-25. Key Embedded Systems technologies
-26. Short job description
-27. Why the job is relevant
-28. Eligibility uncertainty
-29. Official company website
-30. Official careers page
-31. DIRECT APPLICATION LINK — "APPLY HERE"
-
-FRESHNESS LABELS
-
-Use:
-
-- Posted today
-- Posted within 24 hours
-- Posted within 3 days
-- Posted within 7 days
-- Posting date not available
-
-Give the newest postings the highest priority.
-
-DUPLICATE HANDLING
-
-- Do not show the same job multiple times.
-- If the same job appears on LinkedIn, Naukri, Indeed, Glassdoor, and the company website, combine the information.
-- Prefer the official company application link.
-- Do not repeatedly report the same job on consecutive days unless there is a meaningful update.
-
-Meaningful updates include:
-- New posting
-- Changed deadline
-- Changed eligibility
-- New location
-- New application link
-- Significant change in job description
-- Reopened position
-
-PRIORITY RANKING
-
-Rank jobs using:
-
-1. Freshness
-2. Fresher eligibility
-3. Embedded Systems relevance
-4. Technical relevance
-5. Company career value
-6. Company reputation/brand value
-7. Direct application availability
-8. International/onsite opportunity
-9. Visa sponsorship/relocation support
-10. Salary relative to my preferred ₹1 lakh/month target
-
-IMPORTANT:
-
-Salary must NOT override strong career value.
-
-A ₹50,000/month job at a highly reputable company with excellent Embedded Systems exposure may be more valuable than a ₹1,00,000/month job at a company with weak technical relevance.
-
-Do not remove lower-paying opportunities.
-
-Use salary as an additional ranking factor only.
-
-DAILY REPORT STRUCTURE
-
-Start with:
-
-"Embedded Systems Fresher Jobs — [DATE]"
-
-Then provide:
-
-1. APPLY EARLY — NEWEST OPPORTUNITIES
-
-Show the freshest opportunities first.
-
-2. TOP OPPORTUNITIES TODAY
-
-Show the strongest overall opportunities based on:
-- Fresher eligibility
-- Embedded relevance
-- Company quality
-- Career value
-- Freshness
-- Salary as an additional factor
-
-3. COMPANY DETAILS
-
-For each company, clearly show:
-
-Company:
-Industry:
-Company size:
-Global presence:
-Reputation:
-What they do:
-Embedded Systems relevance:
-Career value:
-Official website:
-
-4. INDIA OPPORTUNITIES
-
-Separate:
-- Onsite
-- Hybrid
-- Remote
-
-5. INTERNATIONAL / ONSITE OPPORTUNITIES
-
-Prioritize:
-- Visa sponsorship
-- International applicants
-- Relocation support
-- Graduate programs
-- Strong Embedded Systems companies
-
-6. SALARY TARGET OPPORTUNITIES
-
-Show jobs that meet or exceed my preferred:
-
-₹1,00,000/month
-approximately ₹12 LPA
-
-This is a separate highlight only.
-
-Do not imply that lower-paying jobs are unsuitable.
-
-7. POTENTIAL MATCHES / ELIGIBILITY UNCLEAR
-
-Include jobs where eligibility is uncertain.
-
-8. OTHER MATCHES — LAST 7 DAYS
-
-Use the 7-day fallback when necessary.
-
-9. NO SUITABLE JOBS
-
-If no relevant verified jobs are found:
-
-"No suitable verified Embedded Systems opportunities found today."
-
-Do not lower the standards merely to produce results.
-
-FINAL RULE
-
-This task is a JOB DISCOVERY AND NOTIFICATION SYSTEM.
-
-Its job is:
-
-SEARCH BROADLY
-→ VERIFY
-→ FIND THE NEWEST JOBS
-→ REPORT THE REQUIREMENTS
-→ PROVIDE COMPANY DETAILS
-→ ASSESS COMPANY SIZE AND REPUTATION
-→ ASSESS EMBEDDED CAREER VALUE
-→ REPORT SALARY
-→ PROVIDE THE DIRECT APPLY LINK
-→ LET ME DECIDE
-
-Do not silently make the final eligibility or application decision for me.
-
-Do not reject a potentially relevant opportunity merely because salary is below ₹1 lakh/month.
-
-My ₹1 lakh/month expectation is an ADDITIONAL PREFERENCE, NOT A REQUIREMENT.
-
-Always use the available information and search capability thoroughly before producing the report.
-
----
-
-Based on the above criteria, please perform a comprehensive web search for Embedded Systems fresher job opportunities and provide the results in the specified format.
-
-Today's date: """ + datetime.now().strftime("%A, %B %d, %Y") + "\n\nIST Time: " + datetime.now().strftime("%H:%M:%S") + "\n\nPlease search for jobs posted in the last 24 hours and provide the results."
-
-def run_job_search():
-    """Run the job search using Claude API"""
-    
-    api_key = os.getenv('ANTHROPIC_API_KEY')
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-    
-    client = Anthropic()
-    
-    print("🔍 Starting Embedded Systems Fresher Job Search...")
-    print(f"⏰ Search Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    print("=" * 80)
-    
-    # Create the search prompt
-    prompt = create_search_prompt()
-    
-    # Call Claude API with web search capability
-    print("\n📡 Calling Claude API with web search...\n")
-    
-    response = client.messages.create(
-        model="claude-opus-4-8",
-        max_tokens=8000,
-        tools=[
-            {
-                "type": "web_search_20250305",
-                "name": "web_search"
-            }
-        ],
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
+import html
+import re
+import sys
+import time
+import traceback
+
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote, urljoin, urlparse
+from urllib.request import Request, urlopen
+from xml.etree import ElementTree
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+OUTPUT_FILE = "job_results.md"
+
+
+PRIORITY_COMPANIES = [
+    "HARMAN",
+    "Samsung",
+    "Bosch",
+    "Continental",
+    "NXP",
+    "Texas Instruments",
+    "Qualcomm",
+    "Intel",
+    "AMD",
+    "NVIDIA",
+    "Microchip",
+    "STMicroelectronics",
+    "Infineon",
+    "Renesas",
+    "MediaTek",
+    "Siemens",
+    "ABB",
+    "Schneider Electric",
+    "Honeywell",
+    "GE",
+    "Eaton",
+    "Valeo",
+    "Aptiv",
+    "ZF",
+    "Visteon",
+    "Tata Elxsi",
+    "LTTS",
+    "L&T Technology Services",
+    "KPIT",
+    "Wipro",
+]
+
+
+SEARCH_QUERIES = [
+    # General Embedded
+    '"embedded software engineer" fresher India',
+    '"embedded systems engineer" fresher India',
+    '"embedded engineer" fresher India',
+    '"firmware engineer" fresher India',
+    '"embedded C" fresher India',
+    '"firmware developer" fresher India',
+    '"embedded linux" fresher India',
+    '"embedded software" "0-2 years" India',
+    '"embedded" "graduate engineer trainee" India',
+    '"embedded" "trainee engineer" India',
+    '"embedded" "entry level" India',
+    '"embedded" "0 years" India',
+
+    # Bengaluru
+    '"embedded software engineer" fresher Bangalore',
+    '"embedded systems engineer" fresher Bangalore',
+    '"firmware engineer" fresher Bangalore',
+    '"embedded C" fresher Bangalore',
+    '"embedded linux" fresher Bangalore',
+    '"firmware" "graduate engineer trainee" Bangalore',
+
+    # Chennai
+    '"embedded software engineer" fresher Chennai',
+    '"embedded systems engineer" fresher Chennai',
+    '"firmware engineer" fresher Chennai',
+
+    # Hyderabad
+    '"embedded software engineer" fresher Hyderabad',
+    '"embedded systems engineer" fresher Hyderabad',
+    '"firmware engineer" fresher Hyderabad',
+
+    # Pune
+    '"embedded software engineer" fresher Pune',
+    '"embedded systems engineer" fresher Pune',
+    '"firmware engineer" fresher Pune',
+
+    # Automotive
+    '"automotive embedded" fresher India',
+    '"automotive firmware" fresher India',
+    '"AUTOSAR" fresher India',
+    '"CAN" embedded fresher India',
+
+    # RTOS / Linux
+    '"FreeRTOS" fresher India',
+    '"RTOS" embedded fresher India',
+    '"embedded Linux" graduate India',
+    '"device driver" fresher India',
+    '"BSP" embedded fresher India',
+
+    # International
+    '"embedded software engineer" graduate jobs',
+    '"embedded systems engineer" graduate jobs',
+    '"firmware engineer" graduate jobs',
+    '"embedded engineer" entry level jobs',
+]
+
+
+for company in PRIORITY_COMPANIES:
+    SEARCH_QUERIES.extend(
+        [
+            f'"{company}" embedded fresher',
+            f'"{company}" embedded engineer graduate',
+            f'"{company}" firmware fresher',
+            f'"{company}" embedded software engineer entry level',
         ]
     )
-    
-    # Extract the response text
-    result_text = ""
-    for block in response.content:
-        if hasattr(block, 'text'):
-            result_text += block.text
-    
-    # Save results to markdown file
-    output_file = "job_results.md"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(result_text)
-    
-    print("\n" + "=" * 80)
-    print(f"✅ Job search completed!")
-    print(f"📁 Results saved to: {output_file}")
-    print(f"📊 Total output length: {len(result_text)} characters")
-    
-    # Print a preview of results
-    print("\n" + "=" * 80)
-    print("PREVIEW OF RESULTS:")
+
+
+EMBEDDED_KEYWORDS = [
+    "embedded",
+    "firmware",
+    "microcontroller",
+    "mcu",
+    "embedded software",
+    "embedded systems",
+    "embedded c",
+    "embedded c++",
+    "rtos",
+    "freertos",
+    "embedded linux",
+    "device driver",
+    "bsp",
+    "bootloader",
+    "arm cortex",
+    "stm32",
+    "esp32",
+    "avr",
+    "pic",
+    "uart",
+    "spi",
+    "i2c",
+    "can bus",
+    "can fd",
+    "autosar",
+    "iot",
+    "firmware development",
+    "board bring-up",
+]
+
+
+FRESHER_KEYWORDS = [
+    "fresher",
+    "fresh graduate",
+    "recent graduate",
+    "graduate",
+    "entry level",
+    "entry-level",
+    "trainee",
+    "graduate engineer trainee",
+    "get",
+    "0 years",
+    "0-1 years",
+    "0–1 years",
+    "0-2 years",
+    "0–2 years",
+    "0-3 years",
+    "0–3 years",
+    "junior",
+    "associate",
+    "intern",
+]
+
+
+SENIOR_KEYWORDS = [
+    "senior engineer",
+    "senior software engineer",
+    "lead engineer",
+    "principal engineer",
+    "staff engineer",
+    "architect",
+    "engineering manager",
+    "technical manager",
+    "director",
+]
+
+
+INDIA_LOCATIONS = [
+    "bangalore",
+    "bengaluru",
+    "chennai",
+    "hyderabad",
+    "pune",
+    "mumbai",
+    "noida",
+    "gurgaon",
+    "gurugram",
+    "delhi",
+    "ahmedabad",
+    "coimbatore",
+    "mysore",
+    "mysuru",
+    "kochi",
+    "trivandrum",
+    "thiruvananthapuram",
+    "kolkata",
+]
+
+
+def clean_text(value):
+    value = html.unescape(value or "")
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = re.sub(r"\s+", " ", value)
+    return value.strip()
+
+
+def fetch_url(url, timeout=20):
+    request = Request(
+        url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(compatible; EmbeddedJobSearch/1.0; "
+                "+https://github.com/)"
+            )
+        },
+    )
+
+    with urlopen(request, timeout=timeout) as response:
+        content_type = response.headers.get("Content-Type", "")
+        data = response.read()
+
+        charset = "utf-8"
+
+        match = re.search(
+            r"charset=([A-Za-z0-9._-]+)",
+            content_type,
+            re.IGNORECASE,
+        )
+
+        if match:
+            charset = match.group(1)
+
+        return data.decode(charset, errors="replace")
+
+
+def google_news_search(query):
+    encoded_query = quote(query)
+
+    url = (
+        "https://news.google.com/rss/search?"
+        f"q={encoded_query}"
+        "&hl=en-IN"
+        "&gl=IN"
+        "&ceid=IN:en"
+    )
+
+    try:
+        xml_data = fetch_url(url)
+
+        root = ElementTree.fromstring(xml_data)
+
+        results = []
+
+        for item in root.findall(".//item"):
+            title = item.findtext("title") or ""
+            link = item.findtext("link") or ""
+            description = item.findtext("description") or ""
+            pub_date = item.findtext("pubDate") or ""
+            source = item.findtext("source") or ""
+
+            results.append(
+                {
+                    "title": clean_text(title),
+                    "url": link.strip(),
+                    "description": clean_text(description),
+                    "published": pub_date,
+                    "source": clean_text(source),
+                    "query": query,
+                }
+            )
+
+        return results
+
+    except Exception as exc:
+        print(
+            f"Search failed for query '{query}': {exc}",
+            file=sys.stderr,
+        )
+
+        return []
+
+
+def parse_date(date_string):
+    if not date_string:
+        return None
+
+    try:
+        return parsedate_to_datetime(date_string).astimezone(
+            IST
+        )
+    except Exception:
+        return None
+
+
+def freshness_label(published):
+    if not published:
+        return "Posting date not available"
+
+    now = datetime.now(IST)
+
+    age = now - published
+
+    if age <= timedelta(hours=24):
+        return "Posted within 24 hours"
+
+    if age <= timedelta(days=3):
+        return "Posted within 3 days"
+
+    if age <= timedelta(days=7):
+        return "Posted within 7 days"
+
+    return "Older than 7 days"
+
+
+def extract_company(title, description, source):
+    text = f"{title} {description} {source}"
+
+    lowered = text.lower()
+
+    for company in PRIORITY_COMPANIES:
+        if company.lower() in lowered:
+            return company
+
+    if source:
+        return source
+
+    return "Company not identified"
+
+
+def extract_location(text):
+    lowered = text.lower()
+
+    for location in INDIA_LOCATIONS:
+        if location in lowered:
+            if location in ("bangalore", "bengaluru"):
+                return "Bengaluru, India"
+
+            return location.title() + ", India"
+
+    international_locations = [
+        "germany",
+        "united states",
+        "usa",
+        "canada",
+        "uk",
+        "united kingdom",
+        "ireland",
+        "netherlands",
+        "france",
+        "sweden",
+        "singapore",
+        "japan",
+        "australia",
+    ]
+
+    for location in international_locations:
+        if location in lowered:
+            return location.title()
+
+    return "Location not verified"
+
+
+def extract_salary(text):
+    patterns = [
+        r"₹\s?[\d,]+\s?(?:lpa|lakh|lakhs)",
+        r"₹\s?[\d,]+\s?(?:per month|/month)",
+        r"\b\d+(?:\.\d+)?\s?LPA\b",
+        r"\b\d+(?:\.\d+)?\s?lakhs?\b",
+        r"\$\s?[\d,]+",
+    ]
+
+    for pattern in patterns:
+        match = re.search(
+            pattern,
+            text,
+            re.IGNORECASE,
+        )
+
+        if match:
+            return match.group(0)
+
+    return "Not disclosed"
+
+
+def find_experience(text):
+    patterns = [
+        r"\b0\s*[-–]\s*1\s*years?\b",
+        r"\b0\s*[-–]\s*2\s*years?\b",
+        r"\b0\s*[-–]\s*3\s*years?\b",
+        r"\b0\s*[-–]\s*4\s*years?\b",
+        r"\b1\s*[-–]\s*2\s*years?\b",
+        r"\b1\s*[-–]\s*3\s*years?\b",
+        r"\b\d+\+?\s*years?\b",
+        r"\bfreshers?\b",
+        r"\bentry[- ]level\b",
+        r"\bgraduate\b",
+        r"\btrainee\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(
+            pattern,
+            text,
+            re.IGNORECASE,
+        )
+
+        if match:
+            return match.group(0)
+
+    return "Not mentioned"
+
+
+def technical_matches(text):
+    lowered = text.lower()
+
+    matches = []
+
+    for keyword in EMBEDDED_KEYWORDS:
+        if keyword in lowered:
+            matches.append(keyword)
+
+    return list(dict.fromkeys(matches))
+
+
+def is_embedded_related(text):
+    lowered = text.lower()
+
+    return any(
+        keyword in lowered
+        for keyword in EMBEDDED_KEYWORDS
+    )
+
+
+def is_fresher_relevant(text):
+    lowered = text.lower()
+
+    return any(
+        keyword in lowered
+        for keyword in FRESHER_KEYWORDS
+    )
+
+
+def is_clearly_senior(text):
+    lowered = text.lower()
+
+    for keyword in SENIOR_KEYWORDS:
+        if keyword in lowered:
+            return True
+
+    experience_matches = re.findall(
+        r"\b([2-9]|1[0-9])\+?\s*years?\b",
+        lowered,
+    )
+
+    if experience_matches:
+        for value in experience_matches:
+            if int(value) >= 2:
+                return True
+
+    return False
+
+
+def company_quality(company):
+    if company in PRIORITY_COMPANIES:
+        return 25
+
+    return 0
+
+
+def score_result(result):
+    title = result["title"]
+    description = result["description"]
+
+    text = f"{title} {description}".lower()
+
+    score = 0
+
+    embedded = technical_matches(text)
+
+    score += min(len(embedded) * 3, 30)
+
+    if is_fresher_relevant(text):
+        score += 25
+
+    if "bengaluru" in text or "bangalore" in text:
+        score += 15
+
+    score += company_quality(
+        result["company"]
+    )
+
+    if "firmware" in text:
+        score += 5
+
+    if "embedded c" in text:
+        score += 5
+
+    if "rtos" in text:
+        score += 5
+
+    if "embedded linux" in text:
+        score += 5
+
+    if "graduate engineer trainee" in text:
+        score += 10
+
+    if "internship" in text:
+        score += 5
+
+    if is_clearly_senior(text):
+        score -= 40
+
+    published = result.get("published_datetime")
+
+    if published:
+        age = datetime.now(IST) - published
+
+        if age <= timedelta(hours=24):
+            score += 20
+
+        elif age <= timedelta(days=3):
+            score += 10
+
+        elif age <= timedelta(days=7):
+            score += 5
+
+    return score
+
+
+def normalize_url(url):
+    if not url:
+        return ""
+
+    parsed = urlparse(url)
+
+    return (
+        parsed.scheme.lower(),
+        parsed.netloc.lower(),
+        parsed.path.rstrip("/"),
+    )
+
+
+def deduplicate(results):
+    unique = {}
+
+    for result in results:
+        key = normalize_url(result["url"])
+
+        if not key:
+            key = (
+                result["title"].lower(),
+                result["company"].lower(),
+            )
+
+        if key not in unique:
+            unique[key] = result
+
+    return list(unique.values())
+
+
+def enrich_result(result):
+    url = result["url"]
+
+    page_text = ""
+
+    try:
+        page_text = clean_text(
+            fetch_url(url)
+        )
+
+        # Keep the amount of text manageable.
+        page_text = page_text[:30000]
+
+    except Exception as exc:
+        print(
+            f"Could not fetch {url}: {exc}",
+            file=sys.stderr,
+        )
+
+    combined = (
+        result["title"]
+        + " "
+        + result["description"]
+        + " "
+        + page_text
+    )
+
+    result["page_text"] = page_text
+
+    result["location"] = extract_location(
+        combined
+    )
+
+    result["salary"] = extract_salary(
+        combined
+    )
+
+    result["experience"] = find_experience(
+        combined
+    )
+
+    result["technical_matches"] = technical_matches(
+        combined
+    )
+
+    result["embedded_relevant"] = is_embedded_related(
+        combined
+    )
+
+    result["fresher_relevant"] = is_fresher_relevant(
+        combined
+    )
+
+    result["senior"] = is_clearly_senior(
+        combined
+    )
+
+    result["freshness"] = freshness_label(
+        result["published_datetime"]
+    )
+
+    result["score"] = score_result(
+        result
+    )
+
+    return result
+
+
+def search_all():
     print("=" * 80)
-    print(result_text[:2000] + "\n... (see full results in job_results.md)")
-    
-    return result_text
+    print("Embedded Systems Fresher Job Search")
+    print("=" * 80)
+
+    print(
+        "Search time:",
+        datetime.now(IST).strftime(
+            "%Y-%m-%d %H:%M:%S IST"
+        ),
+    )
+
+    print(
+        f"Running {len(SEARCH_QUERIES)} search queries..."
+    )
+
+    all_results = []
+
+    for index, query in enumerate(
+        SEARCH_QUERIES,
+        start=1,
+    ):
+        print(
+            f"[{index}/{len(SEARCH_QUERIES)}] {query}"
+        )
+
+        results = google_news_search(query)
+
+        all_results.extend(results)
+
+        time.sleep(0.3)
+
+    print(
+        f"Raw results: {len(all_results)}"
+    )
+
+    return all_results
+
+
+def prepare_results(results):
+    prepared = []
+
+    for result in results:
+        if not result.get("url"):
+            continue
+
+        result["published_datetime"] = parse_date(
+            result.get("published", "")
+        )
+
+        result["company"] = extract_company(
+            result["title"],
+            result["description"],
+            result["source"],
+        )
+
+        prepared.append(result)
+
+    prepared = deduplicate(prepared)
+
+    print(
+        f"Unique results: {len(prepared)}"
+    )
+
+    enriched = []
+
+    for index, result in enumerate(
+        prepared,
+        start=1,
+    ):
+        print(
+            f"Checking result "
+            f"{index}/{len(prepared)}: "
+            f"{result['title'][:80]}"
+        )
+
+        try:
+            result = enrich_result(
+                result
+            )
+
+            if not result["embedded_relevant"]:
+                continue
+
+            if result["senior"]:
+                continue
+
+            enriched.append(result)
+
+        except Exception as exc:
+            print(
+                f"Enrichment failed: {exc}",
+                file=sys.stderr,
+            )
+
+    enriched.sort(
+        key=lambda item: item["score"],
+        reverse=True,
+    )
+
+    return enriched
+
+
+def company_reputation(company):
+    if company in PRIORITY_COMPANIES:
+        return (
+            "Major / established company; "
+            "priority company in this search"
+        )
+
+    return (
+        "Company reputation requires "
+        "individual verification"
+    )
+
+
+def career_value(result):
+    matches = result["technical_matches"]
+
+    if len(matches) >= 6:
+        return "Very strong"
+
+    if len(matches) >= 3:
+        return "Strong"
+
+    if len(matches) >= 1:
+        return "Moderate"
+
+    return "Unclear"
+
+
+def salary_classification(salary):
+    if salary == "Not disclosed":
+        return "Salary not mentioned"
+
+    lowered = salary.lower()
+
+    if "12" in lowered or "13" in lowered:
+        return (
+            "Potentially meets preferred "
+            "₹1 lakh/month target; verify CTC/base"
+        )
+
+    return (
+        "Below or unclear relative to "
+        "₹1 lakh/month preference"
+    )
+
+
+def job_markdown(result, number):
+    published = result.get(
+        "published_datetime"
+    )
+
+    if published:
+        posted = published.strftime(
+            "%Y-%m-%d %H:%M IST"
+        )
+    else:
+        posted = "Not available"
+
+    location = result["location"]
+
+    if "India" in location:
+        region = "India"
+    else:
+        region = "International / unclear"
+
+    technical = ", ".join(
+        result["technical_matches"][:15]
+    )
+
+    if not technical:
+        technical = "Not identified"
+
+    description = result["description"]
+
+    if not description:
+        description = (
+            "Job description could not be "
+            "fully extracted from the source."
+        )
+
+    return f"""
+### {number}. {result["title"]}
+
+**Company:** {result["company"]}
+
+**Company size/reputation:** \
+{company_reputation(result["company"])}
+
+**Location:** {location}
+
+**Region:** {region}
+
+**Experience requirement:** {result["experience"]}
+
+**Fresher relevance:** \
+{"Potentially suitable" if result["fresher_relevant"] else "Eligibility unclear"}
+
+**Posted:** {posted}
+
+**Freshness:** {result["freshness"]}
+
+**Salary:** {result["salary"]}
+
+**Salary vs ₹1 lakh/month preference:** \
+{salary_classification(result["salary"])}
+
+**Embedded Systems relevance:** \
+{"Yes" if result["embedded_relevant"] else "Unclear"}
+
+**Career value for Embedded Systems:** \
+{career_value(result)}
+
+**Key technologies:** {technical}
+
+**Source:** {result["source"]}
+
+**APPLY HERE:** {result["url"]}
+
+**Why this may be relevant:**  
+The listing contains Embedded Systems/Firmware-related \
+keywords and may be relevant to an entry-level candidate. \
+Verify the complete job description and eligibility before applying.
+
+**Job description/source summary:**  
+{description[:1500]}
+"""
+
+
+def priority_company_report(results):
+    found = {}
+
+    for result in results:
+        company = result["company"]
+
+        if company in PRIORITY_COMPANIES:
+            found[company] = found.get(
+                company,
+                0,
+            ) + 1
+
+    lines = []
+
+    for company in PRIORITY_COMPANIES:
+        count = found.get(company, 0)
+
+        if count:
+            lines.append(
+                f"- **{company}** — "
+                f"{count} potentially relevant result(s) found"
+            )
+        else:
+            lines.append(
+                f"- **{company}** — "
+                "No suitable result discovered"
+            )
+
+    return "\n".join(lines)
+
+
+def create_report(results):
+    now = datetime.now(IST)
+
+    report = []
+
+    report.append(
+        "# Embedded Systems Fresher Jobs — "
+        + now.strftime("%B %d, %Y")
+    )
+
+    report.append("")
+
+    report.append(
+        f"Search time: "
+        f"{now.strftime('%Y-%m-%d %H:%M:%S IST')}"
+    )
+
+    report.append("")
+
+    report.append(
+        "> GitHub-only automated job discovery. "
+        "No Anthropic/OpenAI API was used."
+    )
+
+    report.append("")
+
+    report.append(
+        "## Search Method"
+    )
+
+    report.append("")
+
+    report.append(
+        "- Public RSS/search results"
+    )
+
+    report.append(
+        "- Direct page verification when accessible"
+    )
+
+    report.append(
+        "- Embedded Systems keyword matching"
+    )
+
+    report.append(
+        "- Fresher/entry-level keyword matching"
+    )
+
+    report.append(
+        "- Bengaluru priority"
+    )
+
+    report.append(
+        "- Priority-company searches"
+    )
+
+    report.append(
+        "- Duplicate removal"
+    )
+
+    report.append(
+        "- Rule-based ranking"
+    )
+
+    report.append("")
+
+    report.append(
+        "## Priority Companies Checked"
+    )
+
+    report.append("")
+
+    report.append(
+        priority_company_report(results)
+    )
+
+    report.append("")
+
+    if not results:
+        report.append(
+            "## No Suitable Jobs Found"
+        )
+
+        report.append("")
+
+        report.append(
+            "No suitable verified Embedded Systems "
+            "opportunities were discovered by the "
+            "automated search."
+        )
+
+        return "\n".join(report)
+
+    newest = [
+        result
+        for result in results
+        if result["freshness"]
+        in (
+            "Posted within 24 hours",
+            "Posted today",
+        )
+    ]
+
+    last_7_days = [
+        result
+        for result in results
+        if result["freshness"]
+        in (
+            "Posted within 3 days",
+            "Posted within 7 days",
+        )
+    ]
+
+    report.append(
+        "## APPLY EARLY — NEWEST OPPORTUNITIES"
+    )
+
+    report.append("")
+
+    if newest:
+        for index, result in enumerate(
+            newest[:15],
+            start=1,
+        ):
+            report.append(
+                job_markdown(
+                    result,
+                    index,
+                )
+            )
+    else:
+        report.append(
+            "No clearly dated jobs from the "
+            "last 24 hours were discovered."
+        )
+
+    report.append("")
+
+    report.append(
+        "## TOP OPPORTUNITIES TODAY"
+    )
+
+    report.append("")
+
+    for index, result in enumerate(
+        results[:20],
+        start=1,
+    ):
+        report.append(
+            job_markdown(
+                result,
+                index,
+            )
+        )
+
+    report.append("")
+
+    report.append(
+        "## INDIA OPPORTUNITIES"
+    )
+
+    report.append("")
+
+    india_results = [
+        result
+        for result in results
+        if "India" in result["location"]
+    ]
+
+    if india_results:
+        for index, result in enumerate(
+            india_results[:15],
+            start=1,
+        ):
+            report.append(
+                job_markdown(
+                    result,
+                    index,
+                )
+            )
+    else:
+        report.append(
+            "No India opportunities were discovered."
+        )
+
+    report.append("")
+
+    report.append(
+        "## INTERNATIONAL OPPORTUNITIES"
+    )
+
+    report.append("")
+
+    international_results = [
+        result
+        for result in results
+        if "India" not in result["location"]
+    ]
+
+    if international_results:
+        for index, result in enumerate(
+            international_results[:15],
+            start=1,
+        ):
+            report.append(
+                job_markdown(
+                    result,
+                    index,
+                )
+            )
+    else:
+        report.append(
+            "No international opportunities were discovered."
+        )
+
+    report.append("")
+
+    report.append(
+        "## OTHER MATCHES — LAST 7 DAYS"
+    )
+
+    report.append("")
+
+    if len(newest) < 5:
+        for index, result in enumerate(
+            last_7_days[:20],
+            start=1,
+        ):
+            report.append(
+                job_markdown(
+                    result,
+                    index,
+                )
+            )
+    else:
+        report.append(
+            "At least five recent opportunities "
+            "were discovered, so the 7-day fallback "
+            "was not required."
+        )
+
+    report.append("")
+
+    report.append(
+        "## Important Verification Note"
+    )
+
+    report.append("")
+
+    report.append(
+        "This GitHub-only system uses automated "
+        "keyword-based discovery rather than an AI "
+        "web-search agent. Some job sites may block "
+        "automated requests or may not expose their "
+        "complete listings through public search. "
+        "Always open the APPLY HERE link and verify "
+        "the current job description, eligibility, "
+        "location, salary, and application status."
+    )
+
+    return "\n".join(report)
+
+
+def write_failure(error):
+    with open(
+        OUTPUT_FILE,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        file.write(
+            "# Embedded Systems Job Search — FAILED\n\n"
+        )
+
+        file.write(
+            "The GitHub-only job search failed.\n\n"
+        )
+
+        file.write(
+            "## Error\n\n"
+        )
+
+        file.write(
+            f"{error}\n\n"
+        )
+
+        file.write(
+            "## Traceback\n\n"
+        )
+
+        file.write("```text\n")
+
+        file.write(
+            traceback.format_exc()
+        )
+
+        file.write(
+            "\n```\n"
+        )
+
 
 def main():
-    """Main entry point"""
     try:
-        run_job_search()
-        print("\n✅ Script completed successfully!")
-        exit(0)
-    except Exception as e:
-        print(f"\n❌ Error: {str(e)}")
-        exit(1)
+        print(
+            "Starting GitHub-only "
+            "Embedded Systems job search..."
+        )
+
+        raw_results = search_all()
+
+        results = prepare_results(
+            raw_results
+        )
+
+        report = create_report(
+            results
+        )
+
+        with open(
+            OUTPUT_FILE,
+            "w",
+            encoding="utf-8",
+        ) as file:
+            file.write(report)
+
+        print("")
+        print("=" * 80)
+        print(
+            "Job search completed successfully."
+        )
+        print(
+            f"Results: {len(results)}"
+        )
+        print(
+            f"Output: {OUTPUT_FILE}"
+        )
+        print("=" * 80)
+
+        return 0
+
+    except Exception as exc:
+        print(
+            f"Job search failed: {exc}",
+            file=sys.stderr,
+        )
+
+        write_failure(
+            str(exc)
+        )
+
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
