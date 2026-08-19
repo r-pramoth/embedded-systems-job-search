@@ -2,8 +2,11 @@ name: Daily Embedded Systems Fresher Job Search
 
 on:
   schedule:
-    # 7:30 AM IST = 2:00 AM UTC
+    # Daily job search: 7:30 AM IST = 2:00 AM UTC
     - cron: '0 2 * * *'
+
+    # Check Telegram for /start every 5 minutes
+    - cron: '*/5 * * * *'
 
   workflow_dispatch:
 
@@ -24,46 +27,84 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Check Telegram for /start
+        id: telegram
+        if: ${{ github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -e
+
+          echo "Checking Telegram for /start..."
+
+          RESPONSE=$(curl -sS \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=-1&limit=1")
+
+          echo "Telegram response received."
+
+          UPDATE_ID=$(echo "$RESPONSE" | jq -r '.result[0].update_id // empty')
+          MESSAGE_TEXT=$(echo "$RESPONSE" | jq -r '.result[0].message.text // empty')
+          MESSAGE_CHAT_ID=$(echo "$RESPONSE" | jq -r '.result[0].message.chat.id // empty')
+
+          echo "Latest update ID: ${UPDATE_ID:-none}"
+          echo "Latest message: ${MESSAGE_TEXT:-none}"
+
+          if [ -n "$UPDATE_ID" ]; then
+            NEXT_OFFSET=$((UPDATE_ID + 1))
+
+            curl -sS \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=${NEXT_OFFSET}&limit=1" \
+              > /dev/null
+
+            echo "Telegram update confirmed."
+          fi
+
+          if [ "$MESSAGE_TEXT" = "/start" ] && [ "$MESSAGE_CHAT_ID" = "$TELEGRAM_CHAT_ID" ]; then
+            echo "start_requested=true" >> "$GITHUB_OUTPUT"
+            echo "Authorized /start received."
+          else
+            echo "start_requested=false" >> "$GITHUB_OUTPUT"
+            echo "No authorized /start request."
+          fi
+
+      - name: Determine whether to run job search
+        id: run_search
+        env:
+          START_REQUESTED: ${{ steps.telegram.outputs.start_requested }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_search=true" >> "$GITHUB_OUTPUT"
+            echo "Manual workflow execution detected."
+          elif [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" = "0 2 * * *" ]; then
+            echo "run_search=true" >> "$GITHUB_OUTPUT"
+            echo "Daily 7:30 AM IST search triggered."
+          elif [ "$START_REQUESTED" = "true" ]; then
+            echo "run_search=true" >> "$GITHUB_OUTPUT"
+            echo "Telegram /start triggered the job search."
+          else
+            echo "run_search=false" >> "$GITHUB_OUTPUT"
+            echo "No job search required."
+          fi
+
       - name: Run job search
+        if: steps.run_search.outputs.run_search == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python scripts/job_search.py
 
       - name: Upload results as artifact
-        if: always()
+        if: steps.run_search.outputs.run_search == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
           name: job-search-results-${{ github.run_number }}
           path: job_results.md
           retention-days: 30
 
-      - name: Send email notification
-        if: ${{ always() && secrets.EMAIL_USER != '' && secrets.EMAIL_PASSWORD != '' && secrets.ALERT_EMAIL != '' }}
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USER }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: 'Embedded Systems Fresher Jobs - ${{ github.run_id }}'
-          to: ${{ secrets.ALERT_EMAIL }}
-          from: ${{ secrets.EMAIL_USER }}
-          body: |
-            Daily Embedded Systems Job Search Results
-
-            Job search completed.
-
-            Results are available in the GitHub Actions artifact and GitHub Issue.
-
-            Search:
-            - India + International
-            - Embedded Systems
-            - Freshers / Entry Level
-            - Bengaluru priority
-            - HARMAN, Samsung and other major companies
-          attachments: job_results.md
-
       - name: Create GitHub Issue with results
-        if: always()
+        if: steps.run_search.outputs.run_search == 'true' && always()
         uses: actions/github-script@v7
         with:
           script: |
