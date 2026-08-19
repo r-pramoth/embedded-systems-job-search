@@ -1072,9 +1072,15 @@ def main():
         ) as file:
             file.write(report)
 
-        send_telegram_message(
-            report
-        )
+        try:
+            send_telegram_message(
+                report
+            )
+        except Exception as exc:
+            print(
+                f"Telegram notification failed: {exc}",
+                file=sys.stderr,
+            )
 
         print(
             f"Job search completed. "
