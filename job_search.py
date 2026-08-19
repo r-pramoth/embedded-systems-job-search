@@ -155,7 +155,6 @@ FRESHER_KEYWORDS = [
     "entry-level",
     "trainee",
     "graduate engineer trainee",
-    "get",
     "0 years",
     "0-1 years",
     "0–1 years",
