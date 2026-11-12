@@ -321,16 +321,20 @@ def freshness_label(published):
     return "Older than 7 days"
 
 
+def contains_keyword(text, keyword):
+    """Match a complete term, including punctuation-bearing terms like C++."""
+    pattern = r"(?<!\w)" + re.escape(keyword) + r"(?!\w)"
+
+    return re.search(pattern, text, re.IGNORECASE) is not None
+
+
 def extract_company(title, description, source):
-    text = f"{title} {description} {source}"
-    lowered = text.lower()
+    # An RSS publisher is not necessarily the employer described by the item.
+    text = f"{title} {description}"
 
     for company in PRIORITY_COMPANIES:
-        if company.lower() in lowered:
+        if contains_keyword(text, company):
             return company
-
-    if source:
-        return source
 
     return "Company not identified"
 
@@ -339,7 +343,7 @@ def extract_location(text):
     lowered = text.lower()
 
     for location in INDIA_LOCATIONS:
-        if location in lowered:
+        if contains_keyword(lowered, location):
 
             if location in ("bangalore", "bengaluru"):
                 return "Bengaluru, India"
@@ -363,7 +367,7 @@ def extract_location(text):
     ]
 
     for location in international_locations:
-        if location in lowered:
+        if contains_keyword(lowered, location):
             return location.title()
 
     return "Location not verified"
@@ -425,7 +429,7 @@ def technical_matches(text):
     matches = []
 
     for keyword in EMBEDDED_KEYWORDS:
-        if keyword in lowered:
+        if contains_keyword(lowered, keyword):
             matches.append(keyword)
 
     return list(dict.fromkeys(matches))
@@ -435,7 +439,7 @@ def is_embedded_related(text):
     lowered = text.lower()
 
     return any(
-        keyword in lowered
+        contains_keyword(lowered, keyword)
         for keyword in EMBEDDED_KEYWORDS
     )
 
@@ -444,7 +448,7 @@ def is_fresher_relevant(text):
     lowered = text.lower()
 
     return any(
-        keyword in lowered
+        contains_keyword(lowered, keyword)
         for keyword in FRESHER_KEYWORDS
     )
 
@@ -453,16 +457,19 @@ def is_clearly_senior(text):
     lowered = text.lower()
 
     for keyword in SENIOR_KEYWORDS:
-        if keyword in lowered:
+        if contains_keyword(lowered, keyword):
             return True
 
-    experience_matches = re.findall(
-        r"\b([2-9]|1[0-9])\+?\s*years?\b",
+    # Consume the whole range so its upper bound is not read as a minimum.
+    experience_matches = re.finditer(
+        r"(?<![\w.])(\d+(?:\.\d+)?)"
+        r"(?:\s*(?:[-–—]|to)\s*\d+(?:\.\d+)?)?"
+        r"\s*\+?\s*(?:years?|yrs?)\b",
         lowered,
     )
 
-    for value in experience_matches:
-        if int(value) >= 2:
+    for match in experience_matches:
+        if float(match.group(1)) >= 2:
             return True
 
     return False
